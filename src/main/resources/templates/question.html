@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QCM-NET | Test en cours</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --neon-green: #00ff66;
+            --neon-red: #ff4d4d;
+            --bg-body: #10141d;
+            --panel-bg: #1a1f2b;
+            --input-bg: #242b3d;
+            --text-main: #e2e8f0;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background: var(--bg-body); color: var(--text-main);
+            font-family: 'Inter', 'Segoe UI', sans-serif; overflow: hidden;
+        }
+
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.3; }
+
+        .viewport {
+            position: relative; z-index: 10; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+            padding: 20px;
+        }
+
+        .quiz-container {
+            width: 100%; max-width: 750px;
+            background: var(--panel-bg); padding: 40px;
+            border-radius: 20px; border: 1px solid rgba(0, 255, 102, 0.2);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Style du Chronomètre */
+        #quiz-timer {
+            color: var(--neon-green);
+            font-family: 'Courier New', monospace;
+            font-size: 1.8rem;
+            text-align: right;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(0, 255, 102, 0.3);
+            transition: color 0.5s ease;
+        }
+
+        .progress-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 30px;
+        }
+        .progress-bar-container {
+            flex-grow: 1; height: 6px; background: #000;
+            border-radius: 10px; margin: 0 20px; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .progress-fill {
+            height: 100%; background: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green);
+            transition: width 0.5s ease;
+        }
+
+        h3 {
+            font-size: 1.5rem; line-height: 1.5; margin-bottom: 35px;
+            color: white; border-left: 4px solid var(--neon-green); padding-left: 20px;
+        }
+
+        .option-item {
+            margin-bottom: 18px; padding: 18px 25px;
+            background: var(--input-bg); border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px; cursor: pointer; display: flex; align-items: center;
+            transition: all 0.3s ease; position: relative;
+        }
+
+        .option-item:hover {
+            border-color: var(--neon-green);
+            background: rgba(0, 255, 102, 0.05);
+            transform: translateX(10px);
+        }
+
+        .option-item input[type="radio"] {
+            appearance: none; width: 20px; height: 20px;
+            border: 2px solid #555; border-radius: 50%;
+            margin-right: 20px; cursor: pointer; transition: 0.3s;
+            position: relative;
+        }
+
+        .option-item input[type="radio"]:checked {
+            border-color: var(--neon-green);
+            background: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        .option-item input[type="radio"]:checked + span {
+            color: var(--neon-green); font-weight: bold;
+        }
+
+        .option-item span { font-size: 1.1rem; color: #cbd5e1; transition: 0.3s; }
+
+        .btn-next {
+            display: block; width: 100%; padding: 18px;
+            background: var(--neon-green); color: #000;
+            border: none; border-radius: 10px; font-size: 1rem;
+            font-weight: 900; text-transform: uppercase; letter-spacing: 2px;
+            cursor: pointer; margin-top: 35px; transition: 0.3s;
+        }
+
+        .btn-next:hover {
+            background: #fff; box-shadow: 0 0 25px var(--neon-green);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div class="viewport">
+    <div class="quiz-container">
+        <div id="quiz-timer">
+            <i class="fas fa-clock"></i> <span id="timer-count">01:00</span>
+        </div>
+
+        <div class="progress-header">
+            <div style="font-weight: bold; font-size: 0.9rem; color: var(--neon-green);">
+                QUESTION <span th:text="${numQuestion}">1</span>
+            </div>
+
+            <div class="progress-bar-container">
+                <div class="progress-fill"
+                     th:style="'width: ' + (${numQuestion} * 100 / ${totalQuestions}) + '%'"></div>
+            </div>
+
+            <div style="color: #64748b; font-size: 0.9rem;">
+                TOTAL: <span th:text="${totalQuestions}">10</span>
+            </div>
+        </div>
+
+        <h3 th:text="${q.question}">Chargement de la question...</h3>
+
+        <form th:id="quizForm" th:action="@{/quiz/valider}" method="post">
+            <label class="option-item">
+                <input type="radio" name="choix" th:value="${q.option1}" required>
+                <span th:text="${q.option1}">Option 1</span>
+            </label>
+
+            <label class="option-item">
+                <input type="radio" name="choix" th:value="${q.option2}">
+                <span th:text="${q.option2}">Option 2</span>
+            </label>
+
+            <label class="option-item">
+                <input type="radio" name="choix" th:value="${q.option3}">
+                <span th:text="${q.option3}">Option 3</span>
+            </label>
+
+            <label class="option-item">
+                <input type="radio" name="choix" th:value="${q.option4}">
+                <span th:text="${q.option4}">Option 4</span>
+            </label>
+
+            <button type="submit" class="btn-next">Valider la réponse <i class="fas fa-chevron-right"></i></button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // --- LOGIQUE DU CHRONOMÈTRE (MODIFIÉ : 1 MINUTE) ---
+    let timeLeft = 60; // Changé de 20*60 à 60 secondes
+    const timerDisplay = document.getElementById('timer-count');
+    const timerBox = document.getElementById('quiz-timer');
+
+    function startCountdown() {
+        const countdown = setInterval(() => {
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+            // Alerte visuelle : passage au rouge à 15 secondes pour plus de réactivité
+            if (timeLeft <= 15) {
+                timerBox.style.color = "var(--neon-red)";
+                timerBox.style.textShadow = "0 0 15px rgba(255, 77, 77, 0.8)";
+            }
+
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                const inputs = document.querySelectorAll('input[type="radio"]');
+                inputs.forEach(input => input.removeAttribute('required'));
+
+                alert("Temps écoulé ! Synchronisation des données...");
+                document.getElementById('quizForm').submit();
+            }
+            timeLeft--;
+        }, 1000);
+    }
+
+    // --- FOND PLEXUS ---
+    let scene, camera, renderer, points;
+    function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 1, 2000);
+        camera.position.z = 1000;
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+        const geo = new THREE.BufferGeometry();
+        const pos = new Float32Array(1000 * 3);
+        for(let i=0; i<3000; i++) pos[i] = (Math.random()-0.5) * 2000;
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const mat = new THREE.PointsMaterial({ color: 0x00ff66, size: 2, transparent: true, opacity: 0.3 });
+        points = new THREE.Points(geo, mat);
+        scene.add(points);
+
+        startCountdown();
+        animate();
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        points.rotation.y += 0.0004;
+        renderer.render(scene, camera);
+    }
+
+    window.onload = init;
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+
+</body>
+</html>

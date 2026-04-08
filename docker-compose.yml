@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql_db
+    restart: always
+    # On force l'authentification native pour éviter les erreurs de driver Java
+    # En fait c'est une sécurité pour être sûr que ton Java ne reçoive pas d'erreur "Access Denied" au redémarrage.
+    command: --default-authentication-plugin=mysql_native_password
+
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes  # Force l'autorisation du vide
+      - MYSQL_DATABASE=db_qcm
+
+    ports:
+      - "3307:3306"
+
+    # --- Ajout pour persistence 1 : On branche le dossier interne au volume
+    # On dit à Docker que tout ce qui se passe dans le dossier /var/lib/mysql du conteneur
+    # doit être copié et synchronisé avec un espace de stockage nommé qcm_db_data
+    volumes:
+      - qcm_db_data:/var/lib/mysql
+    # -------------------------------------------------------------
+
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+
+  app:
+    build: .
+    container_name: qcm_app
+
+    # Le port externe 8081 redirige vers le port interne 8080 utilisé par Spring Boot
+    ports:
+      - "8081:8080"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    environment:
+      # Correction ici : on utilise "db" (nom du service) au lieu de localhost pour Docker
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/db_qcm?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf8
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=  # Vide ici aussi
+
+
+# --- Ajout pour persistence 2 : On déclare officiellement le volume
+# C'est ici que Docker crée physiquement l'espace de stockage sur ton ordinateur.
+volumes:
+  qcm_db_data:

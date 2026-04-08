@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QCM-NET | MASTER_ACCESS</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        :root {
+            /* Vert impressionnant et Noir */
+            --neon-green: #00ff66;
+            --deep-black: #000000;
+            --glass-bg: rgba(0, 0, 0, 0.9);
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background: var(--deep-black);
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        /* 1. Fond Galaxie de points dense */
+        #canvas-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;
+        }
+
+        .viewport {
+            position: relative; z-index: 10; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            perspective: 1200px;
+        }
+
+        /* 2. Carte Noire Intense */
+        .master-card {
+            width: 400px; padding: 45px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 255, 102, 0.3);
+            border-radius: 20px;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 1), 0 0 20px rgba(0, 255, 102, 0.1);
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out;
+            text-align: center; color: white;
+        }
+
+        .master-card h2 {
+            font-size: 1.8rem; letter-spacing: 5px; margin-bottom: 35px;
+            color: var(--neon-green);
+            text-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
+            transform: translateZ(50px);
+        }
+
+        .input-group {
+            position: relative; margin-bottom: 25px; transform: translateZ(30px);
+            text-align: left;
+        }
+
+        .input-group i {
+            position: absolute; left: 15px; top: 15px; color: var(--neon-green);
+        }
+
+        input {
+            width: 100%; padding: 15px 15px 15px 45px;
+            background: #0a0a0a;
+            border: 1px solid #222;
+            border-radius: 8px; color: white; outline: none;
+            box-sizing: border-box; transition: 0.3s;
+        }
+
+        input:focus {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 10px rgba(0, 255, 102, 0.2);
+        }
+
+        /* 3. BOUTON VERT IMPRESSIONNANT ET NOIR */
+        button {
+            width: 100%; padding: 16px; margin-top: 15px;
+            background: var(--neon-green); /* Fond Vert */
+            color: var(--deep-black);     /* Texte Noir */
+            border: none; border-radius: 8px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transform: translateZ(60px);
+            box-shadow: 0 0 20px rgba(0, 255, 102, 0.4);
+            transition: 0.3s all;
+        }
+
+        button:hover {
+            transform: translateZ(80px) scale(1.05);
+            background: #ffffff; /* Devient blanc brillant au survol */
+            box-shadow: 0 0 30px var(--neon-green);
+        }
+
+        .error-box {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid #ff0000; color: #ff0000;
+            padding: 10px; border-radius: 8px; margin-bottom: 20px;
+            font-size: 0.8rem; transform: translateZ(20px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div class="viewport">
+    <div class="master-card" id="tiltCard">
+        <h2>SECURE_ACCESS</h2>
+
+        <div th:if="${param.error}" class="error-box">
+            ERREUR : IDENTIFIANTS REJETÉS
+        </div>
+
+        <form th:action="@{/login}" method="post">
+            <div class="input-group">
+                <i class="fas fa-user-shield"></i>
+                <input type="email" name="email" placeholder="EMAIL_ID" required>
+            </div>
+            <div class="input-group">
+                <i class="fas fa-lock"></i>
+                <input type="password" name="password" placeholder="PASSWORD" required>
+            </div>
+            <button type="submit">SE CONNECTER</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // --- FOND AVEC BEAUCOUP PLUS DE POINTS (1500) ---
+    let scene, camera, renderer, points;
+    const particleCount = 1500; // Augmenté pour la densité
+
+    function init3D() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 2000);
+        camera.position.z = 500;
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+
+        for(let i=0; i<particleCount * 3; i++) {
+            positions[i] = (Math.random() - 0.5) * 1500;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+        // Matériau des points (Vert néon discret pour le fond)
+        const material = new THREE.PointsMaterial({
+            color: 0x00ff66,
+            size: 1.5,
+            transparent: true,
+            opacity: 0.6
+        });
+
+        points = new THREE.Points(geometry, material);
+        scene.add(points);
+        animate();
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        points.rotation.y += 0.0005; // Rotation lente et classe
+        points.rotation.x += 0.0002;
+        renderer.render(scene, camera);
+    }
+    init3D();
+
+    // --- PARALLAXE ---
+    const card = document.getElementById('tiltCard');
+    document.addEventListener('mousemove', (e) => {
+        let x = (window.innerWidth / 2 - e.pageX) / 30;
+        let y = (window.innerHeight / 2 - e.pageY) / 30;
+        card.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+    });
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+
+</body>
+</html>

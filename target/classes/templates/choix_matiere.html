@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QCM-NET | Student Hub</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --neon-green: #00ff66;
+            --bg-body: #10141d; /* Bleu-Gris profond identique à ton Admin */
+            --panel-bg: #1a1f2b;
+            --text-main: #e2e8f0;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background: var(--bg-body); color: var(--text-main);
+            font-family: 'Inter', 'Segoe UI', sans-serif; overflow-x: hidden;
+        }
+
+        /* 1. Fond Plexus discret */
+        #canvas-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; opacity: 0.4;
+        }
+
+        .main-wrapper {
+            position: relative; z-index: 10;
+            max-width: 1200px; margin: 0 auto; padding: 40px 20px;
+        }
+
+        /* 2. Top Bar cohérente avec l'Admin */
+        .nav-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 40px; padding: 15px 25px;
+            background: var(--panel-bg); border-bottom: 2px solid var(--neon-green);
+            border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .logout-link { color: #94a3b8; text-decoration: none; font-weight: 500; transition: 0.3s; }
+        .logout-link:hover { color: #ff5f5f; }
+
+        /* 3. Grid de sélection des épreuves */
+        .grid-container {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .matiere-card {
+            background: var(--panel-bg); padding: 40px 25px;
+            border-radius: 20px; text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .matiere-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--neon-green);
+            box-shadow: 0 15px 35px rgba(0, 255, 102, 0.1);
+        }
+
+        .icon-box {
+            font-size: 3rem; color: var(--neon-green);
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 10px rgba(0, 255, 102, 0.3));
+        }
+
+        .matiere-title {
+            display: block; font-size: 1.4rem; font-weight: 600;
+            color: white; text-decoration: none; margin-bottom: 10px;
+        }
+
+        .badge-info {
+            background: rgba(0, 255, 102, 0.1); color: var(--neon-green);
+            padding: 5px 15px; border-radius: 30px; font-size: 0.8rem;
+            border: 1px solid rgba(0, 255, 102, 0.2);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        /* 4. Bouton d'action Vert & Noir */
+        .start-btn {
+            display: block; margin-top: 30px; padding: 15px;
+            background: var(--neon-green); color: #000;
+            text-decoration: none; border-radius: 10px;
+            font-weight: 800; text-transform: uppercase; letter-spacing: 2px;
+            transition: 0.3s;
+        }
+
+        .start-btn:hover {
+            background: white;
+            box-shadow: 0 0 20px var(--neon-green);
+        }
+
+        h2.section-title {
+            text-align: center; font-weight: 300; letter-spacing: 4px;
+            margin-bottom: 50px; color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div class="main-wrapper">
+    <div class="nav-bar">
+        <span><i class="fas fa-terminal" style="color: var(--neon-green);"></i> PLATEFORME // <strong th:text="${session.etudiant.nom}">STUDENT</strong></span>
+        <a th:href="@{/logout}" class="logout-link"><i class="fas fa-sign-out-alt"></i> DÉCONNEXION</a>
+    </div>
+
+    <h2 class="section-title">SÉLECTIONNEZ UN MODULE</h2>
+
+    <div class="grid-container">
+        <div th:each="m : ${matieres}" class="matiere-card">
+            <div class="icon-box">
+                <i class="fas fa-layer-group"></i>
+            </div>
+
+            <a th:href="@{/quiz/start(matiereId=${m.id})}" class="matiere-title" th:text="${m.nom}">Nom Matière</a>
+
+            <span class="badge-info">10 Questions • 10 Min</span>
+
+            <a th:href="@{/quiz/start(matiereId=${m.id})}" class="start-btn">Démarrer le Test</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Fond Plexus (Identique à ton Admin Deep Blue-Grey)
+    let scene, camera, renderer, points;
+    function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 1, 2000);
+        camera.position.z = 900;
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const geo = new THREE.BufferGeometry();
+        const pos = new Float32Array(1000 * 3);
+        for(let i=0; i<3000; i++) pos[i] = (Math.random()-0.5) * 2000;
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const mat = new THREE.PointsMaterial({ color: 0x00ff66, size: 2, transparent: true, opacity: 0.3 });
+        points = new THREE.Points(geo, mat);
+        scene.add(points);
+        animate();
+    }
+    function animate() {
+        requestAnimationFrame(animate);
+        points.rotation.y += 0.0004;
+        renderer.render(scene, camera);
+    }
+    init();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+
+</body>
+</html>

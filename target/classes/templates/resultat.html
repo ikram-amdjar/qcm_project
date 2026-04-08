@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QCM-NET | Résultat Final</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --neon-green: #00ff66;
+            --neon-red: #ff3e3e;
+            --bg-body: #10141d;
+            --panel-bg: #1a1f2b;
+            --text-main: #e2e8f0;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background: var(--bg-body); color: var(--text-main);
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            overflow-y: auto; /* Permet de voir le tableau en scrollant */
+            text-align: center;
+        }
+
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.3; }
+
+        .viewport {
+            position: relative; z-index: 10; min-height: 100vh;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            padding: 40px 20px;
+        }
+
+        .result-container {
+            width: 100%; max-width: 500px;
+            background: var(--panel-bg); padding: 60px 40px;
+            border-radius: 30px; border: 1px solid rgba(0, 255, 102, 0.2);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+            backdrop-filter: blur(15px);
+            animation: fadeIn 0.8s ease-out;
+            margin-bottom: 30px;
+        }
+
+        .recap-container {
+            width: 100%; max-width: 800px;
+            background: var(--panel-bg); padding: 30px;
+            border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            margin-top: 20px; text-align: left;
+            animation: fadeIn 1s ease-out;
+        }
+
+        .recap-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .recap-table th { color: #64748b; padding: 12px; border-bottom: 1px solid #334155; text-align: left; }
+        .recap-table td { padding: 15px 12px; border-bottom: 1px solid #1e293b; font-size: 0.95rem; }
+
+        .status-correct { color: var(--neon-green); font-weight: bold; }
+        .status-wrong { color: var(--neon-red); font-weight: bold; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 { color: white; font-weight: 800; letter-spacing: 2px; margin-bottom: 40px; text-transform: uppercase; }
+
+        .score-circle {
+            width: 180px; height: 180px; margin: 0 auto 40px;
+            border: 4px solid var(--neon-green); border-radius: 50%;
+            display: flex; flex-direction: column; justify-content: center;
+            box-shadow: 0 0 30px rgba(0, 255, 102, 0.2), inset 0 0 20px rgba(0, 255, 102, 0.1);
+            background: rgba(0,0,0,0.3);
+        }
+
+        .score-value { font-size: 4rem; font-weight: 900; color: var(--neon-green); text-shadow: 0 0 20px rgba(0, 255, 102, 0.6); }
+        .score-total { color: #64748b; font-size: 1.2rem; font-weight: bold; }
+
+        .btn-return {
+            display: inline-block; padding: 16px 30px;
+            background: var(--neon-green); color: #000;
+            text-decoration: none; border-radius: 12px;
+            font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+            transition: 0.3s; margin-top: 20px;
+            box-shadow: 0 10px 20px rgba(0, 255, 102, 0.2);
+        }
+
+        .btn-return:hover { background: white; transform: translateY(-3px); box-shadow: 0 15px 30px rgba(0, 255, 102, 0.4); }
+
+        .icon-check { font-size: 3.5rem; color: var(--neon-green); margin-bottom: 20px; animation: pulse 2s infinite; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div class="viewport">
+    <div class="result-container">
+        <div class="icon-check"><i class="fas fa-check-circle"></i></div>
+        <h1>Mission Terminée</h1>
+        <div class="score-circle">
+            <div class="score-value" th:text="${note}">18</div>
+            <div class="score-total">/ 20</div>
+        </div>
+        <a th:href="@{/choix-matiere}" class="btn-return"><i class="fas fa-undo"></i> Nouvelle Session</a>
+    </div>
+
+    <div class="recap-container" th:if="${recapitulatif != null}">
+        <h2 style="color: white;"><i class="fas fa-microchip" style="color: var(--neon-green);"></i> Analyse des performances</h2>
+        <table class="recap-table">
+            <thead>
+            <tr>
+                <th>ID Question</th>
+                <th>Votre Choix</th>
+                <th>Statut</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="r : ${recapitulatif}">
+                <td>Question #<span th:text="${r.questionId}"></span></td>
+                <td th:text="${r.reponseChoisie}">Paris</td>
+                <td>
+                    <span th:if="${r.estCorrecte}" class="status-correct"><i class="fas fa-check"></i> CORRECT</span>
+                    <span th:if="${!r.estCorrecte}" class="status-wrong"><i class="fas fa-times"></i> ERREUR</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let scene, camera, renderer, points;
+    function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 1, 2000);
+        camera.position.z = 1000;
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+        const geo = new THREE.BufferGeometry();
+        const pos = new Float32Array(1000 * 3);
+        for(let i=0; i<3000; i++) pos[i] = (Math.random()-0.5) * 2000;
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const mat = new THREE.PointsMaterial({ color: 0x00ff66, size: 2, transparent: true, opacity: 0.3 });
+        points = new THREE.Points(geo, mat);
+        scene.add(points);
+        animate();
+    }
+    function animate() {
+        requestAnimationFrame(animate);
+        points.rotation.y += 0.0004;
+        renderer.render(scene, camera);
+    }
+    init();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+</body>
+</html>
